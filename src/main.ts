@@ -136,6 +136,26 @@ async function bootstrap() {
       console.log('Help articles seeded successfully.');
     }
     
+    // Seed Super Admin if not exists
+    const adminRoleRes = await queryRunner.query(`SELECT id FROM roles WHERE name = 'Super Admin' LIMIT 1;`);
+    let adminRoleId = adminRoleRes[0]?.id;
+    if (!adminRoleId) {
+      const newRole = await queryRunner.query(`INSERT INTO roles (name, permissions) VALUES ('Super Admin', '{}') RETURNING id;`);
+      adminRoleId = newRole[0]?.id;
+    }
+    const adminUser = await queryRunner.query(`SELECT id FROM users WHERE email = 'admin@jevxo.com';`);
+    const bcrypt = require('bcrypt');
+    const hashedAdminPassword = await bcrypt.hash('Admin123456!', 10);
+    if (adminUser.length > 0) {
+      await queryRunner.query(`UPDATE users SET password = $1, "roleId" = $2, status = 'active' WHERE email = 'admin@jevxo.com';`, [hashedAdminPassword, adminRoleId]);
+    } else {
+      await queryRunner.query(
+        `INSERT INTO users (name, email, password, phone, "roleId", status, "isPhoneVerified", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, 'active', true, NOW(), NOW());`,
+        ['Super Admin', 'admin@jevxo.com', hashedAdminPassword, '01700000000', adminRoleId]
+      );
+    }
+    console.log('Super Admin user seeded successfully.');
+
     console.log('Database schema patched successfully.');
   } catch (err) {
     console.error('Failed to run database schema patch:', err);
