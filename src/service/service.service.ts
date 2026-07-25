@@ -7,6 +7,7 @@ import { SearchServiceDto } from './dto/search-service.dto';
 import { Service } from './entities/service.entity';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/entities/notification.entity';
+import { BookingStatus } from '../booking/entities/booking.entity';
 
 @Injectable()
 export class ServiceService {
@@ -41,30 +42,37 @@ export class ServiceService {
   }
 
   async findAll(user: any) {
+    let services: Service[];
     if (!user) {
-      return await this.serviceRepository.find({
+      services = await this.serviceRepository.find({
         relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
       });
+    } else {
+      const roleName = user?.role?.toLowerCase() || '';
+      if (roleName === 'super admin' || roleName === 'superadmin' || roleName === 'admin' || roleName === 'agent' || roleName === 'client') {
+        services = await this.serviceRepository.find({
+          relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
+        });
+      } else if (roleName === 'vendor') {
+        services = await this.serviceRepository.find({
+          where: { vendor: { id: user.sub } },
+          relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
+        });
+      } else {
+        services = await this.serviceRepository.find({
+          where: { employees: { id: user.sub } },
+          relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
+        });
+      }
     }
 
-    const roleName = user?.role?.toLowerCase() || '';
-    if (roleName === 'super admin' || roleName === 'superadmin' || roleName === 'admin' || roleName === 'agent' || roleName === 'client') {
-      return await this.serviceRepository.find({
-        relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
-      });
-    }
-
-    if (roleName === 'vendor') {
-      return await this.serviceRepository.find({
-        where: { vendor: { id: user.sub } },
-        relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
-      });
-    }
-
-    return await this.serviceRepository.find({
-      where: { employees: { id: user.sub } },
-      relations: { nestedServices: { subServices: true }, packages: true, employees: true, vendor: true, category: true, reviews: true, bookings: true },
+    services.forEach(s => {
+      if (s.bookings) {
+        s.bookings = s.bookings.filter(b => b.status === BookingStatus.COMPLETED);
+      }
     });
+
+    return services;
   }
 
   async search(params: SearchServiceDto) {
@@ -91,14 +99,32 @@ export class ServiceService {
     }
 
     if (params.q?.trim()) {
-      const term = `%${params.q.trim().toLowerCase()}%`;
-      qb.andWhere(
-        '(LOWER(service.name) LIKE :term OR LOWER(service.subtitle) LIKE :term OR LOWER(service.description) LIKE :term)',
-        { term },
-      );
+      const words = params.q
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((word) => word.length > 0);
+
+      words.forEach((word, index) => {
+        const paramName = `word_${index}`;
+        const term = `%${word}%`;
+        qb.andWhere(
+          `(LOWER(service.name) LIKE :${paramName} OR ` +
+            `LOWER(service.subtitle) LIKE :${paramName} OR ` +
+            `LOWER(service.description) LIKE :${paramName} OR ` +
+            `LOWER(category.name) LIKE :${paramName})`,
+          { [paramName]: term },
+        );
+      });
     }
 
-    return qb.orderBy('service.createdAt', 'DESC').getMany();
+    const services = await qb.orderBy('service.createdAt', 'DESC').getMany();
+    services.forEach(s => {
+      if (s.bookings) {
+        s.bookings = s.bookings.filter(b => b.status === BookingStatus.COMPLETED);
+      }
+    });
+    return services;
   }
 
   async findOne(id: number) {
@@ -108,6 +134,9 @@ export class ServiceService {
     });
     if (!service) {
       throw new NotFoundException(`Service with ID ${id} not found`);
+    }
+    if (service.bookings) {
+      service.bookings = service.bookings.filter(b => b.status === BookingStatus.COMPLETED);
     }
     return service;
   }
