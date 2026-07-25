@@ -5,29 +5,24 @@ export class CreateLogoDto {
   @IsString()
   companyName?: string;
 
+  // Header / Navbar Logo
   @IsOptional()
   @IsString()
   logoUrl?: string;
 
+  // Footer Logo
   @IsOptional()
   @IsString()
-  faviconUrl?: string;
+  footerLogoUrl?: string;
 
+  // Single Email Field
   @IsOptional()
   @IsString()
   email?: string;
 
   @IsOptional()
   @IsString()
-  supportEmail?: string;
-
-  @IsOptional()
-  @IsString()
   phone?: string;
-
-  @IsOptional()
-  @IsString()
-  altPhone?: string;
 
   @IsOptional()
   @IsString()

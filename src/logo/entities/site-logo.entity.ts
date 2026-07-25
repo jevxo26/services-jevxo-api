@@ -14,23 +14,20 @@ export class SiteSettings {
   @Column({ type: 'text', nullable: true })
   companyName: string;
 
+  // Header / Navbar Logo
   @Column({ type: 'text', nullable: true })
   logoUrl: string;
 
+  // Footer Logo
   @Column({ type: 'text', nullable: true })
-  faviconUrl: string;
+  footerLogoUrl: string;
 
+  // Single Email Field
   @Column({ type: 'text', nullable: true })
   email: string;
 
   @Column({ type: 'text', nullable: true })
-  supportEmail: string;
-
-  @Column({ type: 'text', nullable: true })
   phone: string;
-
-  @Column({ type: 'text', nullable: true })
-  altPhone: string;
 
   @Column({ type: 'text', nullable: true })
   address: string;
