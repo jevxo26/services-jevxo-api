@@ -114,6 +114,10 @@ export class UsersService {
     return this.userRepository.findOne({ where: { phone }, relations: { role: true } });
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email }, relations: { role: true } });
+  }
+
   async findByRoleName(roleName: string): Promise<User[]> {
     return this.userRepository.find({
       where: { role: { name: roleName as any } },
